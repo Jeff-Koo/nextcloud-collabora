@@ -98,6 +98,7 @@ Click on the drop-down arrow on the right, and change it to `Custom permissions`
     - Check the box for `Set password` can create password, so anyone have this shared link need to entry password for viewing the shared files 
         - password is auto-generated when this box is checked, view the password by clicking the eye icon (indicated with purple arrow)
         - password can be customized, but need to be 10 characters long and not common
+        > [!CAUTION]
         > Remember to keep the password **at once**
         >  - there is no way to view what password is set for this share link later
         >  - set **new password** for this share link if the password is forgot
