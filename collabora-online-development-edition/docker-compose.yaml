@@ -1,0 +1,40 @@
+services:
+  collabora-app:
+    image: collabora/code
+    container_name: collabora_container
+    restart: unless-stopped
+    networks:
+      - traefik-proxy
+    # ports:
+    #   - 9980:9980
+    environment:
+      # - VIRTUAL_HOST=office.xxx.com
+      # - LETSENCRYPT_HOST=office.xxx.com
+      # - VIRTUAL_PORT=9980
+      # - VIRTUAL_PORTO=https
+      # - "domain=cloud.xxx.com"
+      # - "server_name=office.xxx.com"
+      - "username=your_username"
+      - "password=your_password"
+      - "extra_params=--o:ssl.enable=false --o:ssl.termination=true"
+    cap_add:
+      - MKNOD
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.office-xxx-redirect-web-secure.redirectscheme.scheme=https"
+      - "traefik.http.routers.office-xxx-app-80.middlewares=office-xxx-redirect-web-secure"
+      - "traefik.http.routers.office-xxx-app-80.rule=Host(`office.xxx.com`)"
+      - "traefik.http.routers.office-xxx-app-80.entrypoints=web"
+      - "traefik.http.routers.office-xxx-app.rule=Host(`office.xxx.com`)"
+      - "traefik.http.routers.office-xxx-app.entrypoints=websecure"
+      - "traefik.http.routers.office-xxx-app.tls=true"
+      - "traefik.http.routers.office-xxx-app.tls.domains[0].main=office.xxx.com"
+      - "traefik.http.routers.office-xxx-app.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.office-xxx-app.middlewares=redirect-http-www@file,redirect-https-www@file,collabora-headers"
+      - "traefik.http.middlewares.collabora-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.services.office-xxx-app.loadbalancer.server.port=9980"
+
+networks:
+  traefik-proxy:
+    external: true
+    name: traefik

@@ -1,0 +1,68 @@
+services:
+  jeff-next-db:
+    image: mariadb:10.6
+    container_name: nextcloud_db_container
+    restart: always
+    networks:
+      - traefik-proxy
+    command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
+    volumes:
+      - ../dbData:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=nextcloud_password
+      - MYSQL_PASSWORD=nextcloud_password
+      - MYSQL_DATABASE=nextcloud_db
+      - MYSQL_USER=nextcloud_user
+
+  jeff-next-app:
+    image: nextcloud
+    container_name: nextcloud_app_container
+    restart: always
+    networks:
+      - traefik-proxy
+    # ports:
+    #   - 9876:80
+    links:
+      - jeff-next-db
+    volumes:
+      - ../appData:/var/www/html
+      - ../userData:/var/www/html/data
+    environment:
+      - MYSQL_PASSWORD=nextcloud_password
+      - MYSQL_DATABASE=nextcloud_db
+      - MYSQL_USER=nextcloud_user
+      - MYSQL_HOST=jeff-next-db
+      - TZ=Asia/Hong_Kong
+      - PHP_MEMORY_LIMIT=8192M
+      - PHP_UPLOAD_LIMIT=8192M
+      - VIRTUAL_HOST=cloud.xxx.com
+      - LETSENCRYPT_HOST=cloud.xxx.com
+      - OVERWRITEHOST=cloud.xxx.com
+      - OVERWRITEPROTOCOL=https
+      - OVERWRITECLIURL=cloud.xxx.com
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.cloud-xxx-redirect-web-secure.redirectscheme.scheme=https"
+      - "traefik.http.routers.cloud-xxx-app-80.middlewares=cloud-xxx-redirect-web-secure"
+      - "traefik.http.routers.cloud-xxx-app-80.rule=Host(`cloud.xxx.com`)"
+      - "traefik.http.routers.cloud-xxx-app-80.entrypoints=web"
+      - "traefik.http.routers.cloud-xxx-app.rule=Host(`cloud.xxx.com`)"
+      - "traefik.http.routers.cloud-xxx-app.entrypoints=websecure"
+      - "traefik.http.routers.cloud-xxx-app.tls=true"
+      - "traefik.http.routers.cloud-xxx-app.tls.domains[0].main=cloud.xxx.com"
+      - "traefik.http.routers.cloud-xxx-app.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.cloud-xxx-app.middlewares=redirect-http-www@file,redirect-https-www@file,nextcloud_redirectregex"
+      - "traefik.http.services.cloud-xxx-app.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.permanent=true"
+      - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.regex=https://(.*)/.well-known/(?:card|cal)dav"
+      - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.replacement=https://$${1}/remote.php/dav"
+    deploy:
+      resources:
+        limits:
+          memory: 8192M
+          cpus: '0.50'
+
+networks:
+  traefik-proxy:
+    external: true
+    name: traefik
