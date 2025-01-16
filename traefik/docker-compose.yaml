@@ -42,6 +42,10 @@ services:
     restart: always
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
+      - "traefik.http.middlewares.httpsonly.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.httpsonly.redirectscheme.permanent=false"
+      - "traefik.http.routers.httpsonly.rule=HostRegexp(`{any:.*}`)"
+      - "traefik.http.routers.httpsonly.middlewares=httpsonly"
 
 networks:
   traefik-proxy:
