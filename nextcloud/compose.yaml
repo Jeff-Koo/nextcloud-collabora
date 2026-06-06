@@ -4,7 +4,7 @@ services:
     container_name: nextcloud_db_container
     restart: always
     networks:
-      - traefik-proxy
+      - nc-internal
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
     volumes:
       - ${DB_DATA_PATH:-../dbData}:/var/lib/mysql
@@ -13,13 +13,23 @@ services:
       - MYSQL_PASSWORD=${DB_PASSWORD}
       - MYSQL_DATABASE=${DB_NAME}
       - MYSQL_USER=${DB_USER}
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   next-app:
     image: nextcloud:latest
     container_name: nextcloud_app_container
     restart: always
     networks:
+      - nc-internal
       - traefik-proxy
+    depends_on:
+      next-db:
+        condition: service_healthy
     volumes:
       - ${APP_DATA_PATH:-../appData}:/var/www/html
       - ${USER_DATA_PATH:-../userData}:/var/www/html/data
@@ -62,6 +72,8 @@ services:
           cpus: '0.50'
 
 networks:
+  nc-internal:
+    driver: bridge
   traefik-proxy:
     external: true
     name: traefik
