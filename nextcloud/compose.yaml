@@ -1,5 +1,5 @@
 services:
-  jeff-next-db:
+  next-db:
     image: mariadb:10.6
     container_name: nextcloud_db_container
     restart: always
@@ -7,62 +7,58 @@ services:
       - traefik-proxy
     command: --transaction-isolation=READ-COMMITTED --log-bin=binlog --binlog-format=ROW
     volumes:
-      - ../dbData:/var/lib/mysql
+      - ${DB_DATA_PATH:-../dbData}:/var/lib/mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=nextcloud_password
-      - MYSQL_PASSWORD=nextcloud_password
-      - MYSQL_DATABASE=nextcloud_db
-      - MYSQL_USER=nextcloud_user
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
 
-  jeff-next-app:
+  next-app:
     image: nextcloud:latest
     container_name: nextcloud_app_container
     restart: always
     networks:
       - traefik-proxy
-    # ports:
-    #   - 9876:80
-    links:
-      - jeff-next-db
     volumes:
-      - ../appData:/var/www/html
-      - ../userData:/var/www/html/data
+      - ${APP_DATA_PATH:-../appData}:/var/www/html
+      - ${USER_DATA_PATH:-../userData}:/var/www/html/data
     environment:
-      - MYSQL_HOST=jeff-next-db
-      - MYSQL_DATABASE=nextcloud_db
-      - MYSQL_USER=nextcloud_user
-      - MYSQL_PASSWORD=nextcloud_password
-      # - NEXTCLOUD_TRUSTED_DOMAINS=localhost # if need to set localhost
-      - NEXTCLOUD_ADMIN_USER=admin
-      - NEXTCLOUD_ADMIN_PASSWORD=admin_password
-      - TZ=Asia/Hong_Kong
-      - PHP_MEMORY_LIMIT=8192M
-      - PHP_UPLOAD_LIMIT=8192M
-      - VIRTUAL_HOST=cloud.xxx.com
-      - LETSENCRYPT_HOST=cloud.xxx.com
-      - OVERWRITEHOST=cloud.xxx.com
+      - MYSQL_HOST=next-db
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - NEXTCLOUD_ADMIN_USER=${NC_ADMIN_USER}
+      - NEXTCLOUD_ADMIN_PASSWORD=${NC_ADMIN_PASSWORD}
+      - TZ=${TIMEZONE}
+      - PHP_MEMORY_LIMIT=${MEMORY_LIMIT}
+      - PHP_UPLOAD_LIMIT=${UPLOAD_LIMIT}
+      - VIRTUAL_HOST=${DOMAIN}
+      - LETSENCRYPT_HOST=${DOMAIN}
+      - OVERWRITEHOST=${DOMAIN}
       - OVERWRITEPROTOCOL=https
-      - OVERWRITECLIURL=cloud.xxx.com
+      - OVERWRITECLIURL=${DOMAIN}
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.cloud-xxx-redirect-web-secure.redirectscheme.scheme=https"
       - "traefik.http.routers.cloud-xxx-app-80.middlewares=cloud-xxx-redirect-web-secure"
-      - "traefik.http.routers.cloud-xxx-app-80.rule=Host(`cloud.xxx.com`)"
+      - "traefik.http.routers.cloud-xxx-app-80.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.cloud-xxx-app-80.entrypoints=web"
-      - "traefik.http.routers.cloud-xxx-app.rule=Host(`cloud.xxx.com`)"
+      - "traefik.http.routers.cloud-xxx-app.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.cloud-xxx-app.entrypoints=websecure"
       - "traefik.http.routers.cloud-xxx-app.tls=true"
-      - "traefik.http.routers.cloud-xxx-app.tls.domains[0].main=cloud.xxx.com"
+      - "traefik.http.routers.cloud-xxx-app.tls.domains[0].main=${DOMAIN}"
       - "traefik.http.routers.cloud-xxx-app.tls.certresolver=letsencrypt"
       - "traefik.http.routers.cloud-xxx-app.middlewares=redirect-http-www@file,redirect-https-www@file,nextcloud_redirectregex"
       - "traefik.http.services.cloud-xxx-app.loadbalancer.server.port=80"
       - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.permanent=true"
       - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.regex=https://(.*)/.well-known/(?:card|cal)dav"
+      # Note: The double '$$' escapes the variable so Traefik reads it, not Docker Compose
       - "traefik.http.middlewares.nextcloud_redirectregex.redirectregex.replacement=https://$${1}/remote.php/dav"
     deploy:
       resources:
         limits:
-          memory: 8192M
+          memory: ${MEMORY_LIMIT}
           cpus: '0.50'
 
 networks:
